@@ -5,30 +5,77 @@ import { useRecoilState, useRecoilValue } from "recoil";
 import { userState } from "~/store/userState";
 
 export default function userCategoriesPage() {
-  const [pageNo,setPageNo]=useState<number>(0);
-  const [allInterests,setAllInterests]=useState<string[]>();
+  const [pageNo,setPageNo]=useState<number>(1);
+  const [allInterests,setAllInterests]=useState<string[]>([]);
   const [pageSequence,setPageSequence]=useState<number[]>([1,2,3,4,5])
-  
+  const [skipInterestsCount,setSkipInterestsCount]=useState<number>(0);
+  const [takeInterestsCount,setTakeInterestsCount]=useState<number>(0);
+
   const [authUserDetails,setAuthUserDetails]=useRecoilState(userState);
   const [userInterests,setUserInterests]=useState<string[]>(authUserDetails?.interests);
 
+  
   useEffect(()=>{
     async function getAllInterests(){
+      console.log("page nooo : ",pageNo);
       try{
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/interests`,{
-            headers:{pageNo:pageNo}
-          }
-        );
-        console.log(response.data);
-        if(response.data?.interests){
-          setAllInterests(response.data.interests);
+        console.log("akshay");
+        let take=0;
+        // let skip=0;
+        if(pageNo*6-userInterests.length<5){   //incomplete page
+          take=pageNo*6-userInterests.length;
+          setSkipInterestsCount(0);
+          // skip=0
+        }else if(pageNo*6-userInterests.length>=6){   //complete page
+          take=6; 
+          setSkipInterestsCount(pageNo*6-userInterests.length);  
         }
+          const response = await axios.get(
+            `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/interests`,{
+              headers:{
+                "pageNo":pageNo,
+                "email":authUserDetails?.email,
+                "take":take,
+                "skip":skipInterestsCount
+              }
+            }
+          );
+          console.log(response.data);
+          // skip=skip+take;
+          setSkipInterestsCount((old)=>{
+            console.log("old: ",old);
+            console.log("take: ",take);
+            return old+take
+          });
+          if(response.data?.interests){
+            setAllInterests(response.data.interests);
+          }
       }catch(error){
         console.log("error in get User Interests route handler");
         console.log(error.response);
       }
     }
+
+    // async function getAllInterests(){
+    //   try{
+    //     const response = await axios.get(
+    //       `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/interests`,{
+    //         headers:{
+    //           "pageNo":pageNo,
+    //           "email":authUserDetails?.email
+    //         }
+    //       }
+    //     );
+    //     console.log(response.data);
+    //     if(response.data?.interests){
+    //       setAllInterests(response.data.interests);
+    //     }
+    //   }catch(error){
+    //     console.log("error in get User Interests route handler");
+    //     console.log(error.response);
+    //   }
+    // }
+
     getAllInterests();
 
   },[pageNo]
@@ -70,15 +117,18 @@ async function handleSelectInterest(e,interestName:string){
   console.log(e.target.value);
   console.log("checked : ",e.target.checked);
   if(e.target.checked){
-    setUserInterests(old=>[...old,interestName]);
+    // setUserInterests(old=>[...old,interestName]);
     addUserInterest(interestName);
   }else{
-    setUserInterests(old=>old.filter(i=>i!=interestName))
+    // e.target.setAttribute("checked",false);
     removeUserInterest(interestName);
+    setUserInterests(old=>old.filter(i=>i!=interestName))
+    setAllInterests(old=>[...old,interestName]);
   }
 }
   
   console.log("user Interests: ",userInterests);
+  console.log("all Interests: ",allInterests);
   // console.log("user int: ",authUserDetails.interests);
 
   return (
@@ -94,22 +144,43 @@ async function handleSelectInterest(e,interestName:string){
         <div className="mt-9 px-[60px]">
           <p className="text-xl font-medium">My saved interests!</p>
           <div className="mt-7 flex flex-col gap-6">
-            
+            {userInterests && userInterests.map((userInt,ind)=>{
+              return(
+                <div className="flex items-center gap-3" key={ind}>
+                  <input type="checkbox" className="h-6 w-6 rounded-lg" checked onChange={(e)=>{
+                    handleSelectInterest(e,userInt);
+                  }}/>
+                  <p className="text-base font-normal">{userInt}</p>
+                </div>
+              )
+            })}
+
+            {/* {allInterests && allInterests.filter((int)=>{
+              if(!userInterests?.includes(int.name)){
+                return(
+                  <div className="flex items-center gap-3" key={int.id}>
+                    <input type="checkbox" className="h-6 w-6 rounded-lg" onChange={(e)=>{
+                      handleSelectInterest(e,int.name);
+                    }}/>
+                    <p className="text-base font-normal">{int?.name}</p>
+                  </div>
+                )
+              }
+            })} */}
+
+
             {allInterests && allInterests.map((int)=>{
               return(
                 <div className="flex items-center gap-3" key={int.id}>
                   <input type="checkbox" className="h-6 w-6 rounded-lg" onChange={(e)=>{
-                    // console.log(e.target.value);
-                    // console.log("checked : ",e.target.checked);
-                    // e.target.checked?
-                    // setUserInterests(old=>[...old,int.name]):
-                    // console.log("unticked")
                     handleSelectInterest(e,int.name);
                   }}/>
                   <p className="text-base font-normal">{int?.name}</p>
                 </div>
               )
             })}
+
+
           </div>
         </div>
 
@@ -134,7 +205,8 @@ async function handleSelectInterest(e,interestName:string){
               return <p className={`font-normal text-base text-slate-500 cursor-pointer hover:text-black hover:font-medium 
               ${p-1==pageNo? 'text-black':'text-slate-400'}`} key={ind} 
               onClick={()=>{
-                setPageNo(p-1);
+                setPageNo(p);
+                // setPageNo(p-1);
               }}>{p}</p>
             })}
             <p className="cursor-pointer" onClick={()=>{

@@ -18,8 +18,22 @@ import { userInterestsData } from "~/utils/userInterests";
 //Fetching all interests
 export async function GET(req:NextRequest){
   const pageNumber:number=headers().get("pageNo");
-  console.log("pageNo : ",pageNumber);
-  const interests=await db.interests.findMany({take:6,skip:6*pageNumber});
+  const email:string=headers().get("email");
+  const take:number=headers().get("take");
+  const skip:number=headers().get("skip");
+  console.log("pageNo : ",pageNumber, " take : ",take, " skip : ",skip);
+  const user=await db.user.findUnique({
+    where:{email}
+  })
+  const interests=await db.interests.findMany({
+    where:{
+      name:{ notIn:user?.interests }
+    },
+    take:Number(take),
+    skip:Number(skip)
+  });
+    // take:6,
+    // skip:6*pageNumber});
   return NextResponse.json({interests},{status:201});
 }
 
