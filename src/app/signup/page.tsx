@@ -40,6 +40,7 @@ export default function signupPage() {
         if(data.jwtToken){
           console.log("entered in");
           localStorage.setItem("jwtToken",response.data.jwtToken);
+          router.push("/interests");
         }
       }catch(error){
         console.log("error in signup route handler");
